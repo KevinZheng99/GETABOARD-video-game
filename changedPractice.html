@@ -49,6 +49,22 @@ var hitEdgeFlag = true;
 var hitEdgeFlag2 = true;
 var hitEdgeFlag3 = true;
 
+// Variable to show if the game needs to restart the level.
+var restart = false;
+var restartDelay = 200; // Time needed for game to respawn you.
+var restartTimer = 0;
+
+// Variable that tracks what level you are on.
+var level = 0;
+
+// Variable that contains game over screen.
+var gameOverScreen;
+var gameOverLevelText;
+var gameOverLivesText;
+
+// Variable that tracks amount of deaths.
+var deaths = 1;
+
 // First thing the player sees.
 var MenuScene = new Phaser.Class({
     Extends: Phaser.Scene,
@@ -95,6 +111,7 @@ var MenuScene = new Phaser.Class({
         // When play button is clicked go to Level1.
         playButton.on("pointerup", ()=>{
             this.scene.start('Level1');
+			level = 1;
         })
 
         // When not hovering play button make arrow disappear.
@@ -129,6 +146,14 @@ var Level1 = new Phaser.Class({
     {
         this.cameras.main.setBounds(0, 0, 1680 * 2, 700);
         this.physics.world.setBounds(0, 0, 1680 * 2, 800);
+		
+		// Load the game over screen for future use.
+	    var width = this.cameras.main.centerX * 4;
+		var height = this.cameras.main.centerY * 4;
+		gameOverScreen = this.add.rectangle(0, 0, width, height, 0x000000);
+		gameOverScreen.setVisible(false);
+		gameOverScreen.setScrollFactor(0);
+		
 
         //When loading from an array, make sure to specify the tileWidth and tileHeight
         const map = this.make.tilemap({ key: 'Level1' });
@@ -136,9 +161,11 @@ var Level1 = new Phaser.Class({
         botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
         topLayer = map.createStaticLayer("top", tiles, 0, 0);
         topLayer.setCollisionByProperty({collides: true});
+		
 
         topLayer.setTileLocationCallback(67, 10, 1, 1, () =>{
             this.scene.start('Level2');
+			level = 2;
         })
 
         // Displays the player
@@ -207,6 +234,18 @@ var Level1 = new Phaser.Class({
         lifeText = this.add.text(1350, 16, 'Life: 1', { fontSize: '32px', fill: '#000'});
         scoreText.setScrollFactor(0);
         lifeText.setScrollFactor(0);
+		
+		gameOverLevelText = this.add.text(700, 300, 'Level ' + level + '', {fontSize: '32px', fill: '#fff' });
+		if (deaths == 1) {
+        gameOverLivesText = this.add.text(600, 400, 'You have died 1 time.', {fontSize: '32px', fill: '#fff'});
+		} else {
+		gameOverLivesText = this.add.text(600, 400, 'You have died ' + deaths + ' times.', {fontSize: '32px', fill: '#fff'});
+		}
+		
+        gameOverLevelText.setScrollFactor(0);
+        gameOverLivesText.setScrollFactor(0);
+		gameOverLevelText.setVisible(false);
+		gameOverLivesText.setVisible(false);
 
         // Collide the player and the enemies with the platforms.
         this.physics.add.collider(man, topLayer);
@@ -222,8 +261,53 @@ var Level1 = new Phaser.Class({
 
     update: function ()
     {
+	
+	    // From here to next comment handles game over screen.
+    	if (gameOver == true) {
+	    man.setVelocityX(0);
+		man.setVelocityY(200);
+	    this.physics.accelerateTo(man, man.x, 0, 180, 500, 500);
+		cursors.up.isDown = true;
+		cursors.left.isDown = false;
+		cursors.right.isDown = false;
+		    gameOver = true;
+    	    if (man.y <= config.height) {
+    		    man.y += 10;
+    	    } else {
+    		    restart = true;
+    	    }
+    	}
+		if (restartTimer <= restartDelay && restart == true && gameOver == true) {
+		    restartTimer += 1;
+			gameOverScreen.setVisible(true);
+			this.children.bringToTop(gameOverScreen);
+			gameOverLevelText.setVisible(true);
+		    this.children.bringToTop(gameOverLevelText);
+			gameOverLivesText.setVisible(true);
+			this.children.bringToTop(gameOverLivesText);
+		}
+		if (restartTimer >= restartDelay && restart == true && gameOver == true) {
+		    restart = false;
+			gameOver = false;
+		     if (level == 1) {
+    		    this.scene.start('Level1');
+    		} else {
+    		if (level == 2) {
+    		    this.scene.start('Level2');
+    	    }
+			}
+			gameOverScreen.setVisible(false);
+			gameOverLevelText.setVisible(false);
+			gameOverLivesText.setVisible(false);
+			restartTimer = 0;
+			life = 1;
+			deaths += 1;
+		}
+		// This concludes the game over screen handling
+		
+		
         // Shoots laser beam.
-        if (lastKeyPressed == "Right" && this.input.keyboard.checkDown(shootingKey, 500))
+        if (lastKeyPressed == "Right" && this.input.keyboard.checkDown(shootingKey, 500) && gameOver == false)
         {
             // Coordinates of where the laser is shot from.
             this.sound.play("pew", {volume: 0.5});
@@ -237,7 +321,7 @@ var Level1 = new Phaser.Class({
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
         }
 
-        if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500))
+        if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500) && gameOver == false)
         {
             // Coordinates of where the laser is shot from.
             this.sound.play("pew", {volume: 0.5});
@@ -641,12 +725,15 @@ var game = new Phaser.Game(config);
 // If enemy touches player, player takes damage or loses.
 function damageTaken (man, enemy)
 {
-    if (life === 0)
+    if (life <= 0)
     {
-        this.physics.pause();
+		man.setVelocityX(0);
+	    this.physics.accelerateTo(man, man.x, man.y - 30, 180, 500, 500);
+		cursors.up.isDown = true;
+		cursors.left.isDown = false;
+		cursors.right.isDown = false;
         man.setTint(0x00ff00);
         gameOver = true;
-        return;
     }
 
     // Subtract and update life.
