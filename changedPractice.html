@@ -15,16 +15,18 @@
 <script type="text/javascript">
 
 // Object vars
-var dude;
 var slime = {hp: 3};
 var slime2 = {hp: 3};
 var slime3 = {hp: 3};
+var slime4;
+var slime5;
 var man;
 var laser;
 
 // Map vars
 var topLayer;
 var botLayer;
+var objectLayer;
 
 // Key vars
 var cursors;
@@ -48,6 +50,11 @@ var lastKeyPressed = "";
 var hitEdgeFlag = true;
 var hitEdgeFlag2 = true;
 var hitEdgeFlag3 = true;
+
+// Flags so next level monsters don't get bugged.
+var Level2Flag = true;
+var Level2Flag2 = true;
+var Level2Flag3 = true;
 
 // First thing the player sees.
 var MenuScene = new Phaser.Class({
@@ -77,7 +84,8 @@ var MenuScene = new Phaser.Class({
         hoverImage.setScale(.25);
         hoverImage.setVisible(false);
 
-        this.sound.pauseOnBlur = false;
+        // Plays music even when out of screen.
+        // this.sound.pauseOnBlur = false;
         this.sound.play("music", {
             loop: true,
             volume: 0.5
@@ -94,12 +102,80 @@ var MenuScene = new Phaser.Class({
 
         // When play button is clicked go to Level1.
         playButton.on("pointerup", ()=>{
-            this.scene.start('Level1');
+            this.scene.start('LoadingScene');
         })
 
         // When not hovering play button make arrow disappear.
         playButton.on("pointerout", ()=>{
             hoverImage.setVisible(false);
+        })
+    }
+});
+
+var LoadingScene = new Phaser.Class({
+    Extends: Phaser.Scene,
+    initialize:
+
+    function LoadingScene ()
+    {
+        Phaser.Scene.call(this, {key: 'LoadingScene'});
+    },
+
+    preload: function ()
+    {
+        let loadingBar = this.add.graphics({
+            fillStyle: {
+                color: 0xffffff // white
+            }
+        })
+
+        // Makes loading bar slower
+        for (let i = 0; i < 100; i++)
+        {
+            this.load.spritesheet("boy" + i, '/assets/dude.png', {frameWidth: 32, frameHeight: 48});
+        }
+
+        this.load.on("progress", (percent)=>{
+            loadingBar.fillRect(0, this.game.renderer.height / 2, this.game.renderer.width * percent, 50);
+            console.log(percent);
+        })
+
+        this.load.on("complete", ()=>{
+            this.scene.start('Level1');
+        })
+    }
+});
+
+var LoadingScene2 = new Phaser.Class({
+    Extends: Phaser.Scene,
+    initialize:
+
+    function LoadingScene2 ()
+    {
+        Phaser.Scene.call(this, {key: 'LoadingScene2'});
+    },
+
+    preload: function ()
+    {
+        let loadingBar = this.add.graphics({
+            fillStyle: {
+                color: 0xffffff // white
+            }
+        })
+
+        // Makes loading bar slower
+        for (let i = 0; i < 100; i++)
+        {
+            this.load.spritesheet("boy" + i, '/assets/dude.png', {frameWidth: 32, frameHeight: 48});
+        }
+
+        this.load.on("progress", (percent)=>{
+            loadingBar.fillRect(0, this.game.renderer.height / 2, this.game.renderer.width * percent, 50);
+            console.log(percent);
+        })
+
+        this.load.on("complete", ()=>{
+            this.scene.start('Level2');
         })
     }
 });
@@ -118,7 +194,7 @@ var Level1 = new Phaser.Class({
     {
         this.load.spritesheet('man', 'assets/SpacemanDan.png', { frameWidth: 48, frameHeight: 48 });
         this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 512, frameHeight: 128 });
-        this.load.spritesheet('enemy', 'assets/Slimboy.png', { frameWidth: 48, frameHeight: 64 }); // planning to make an enemy
+        this.load.spritesheet('enemy', 'assets/Slimeboy.png', { frameWidth: 48, frameHeight: 48 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
         this.load.tilemapTiledJSON("Level1", "/tilemaps/spaceManDanBackground.json");
         this.load.audio("pew", 'sounds/laserSound.wav');
@@ -135,9 +211,11 @@ var Level1 = new Phaser.Class({
         const tiles = map.addTilesetImage("SpacemanDan_TileMap");
         botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
         topLayer = map.createStaticLayer("top", tiles, 0, 0);
+        objectLayer = map.createStaticLayer("objects", tiles, 0, 0);
         topLayer.setCollisionByProperty({collides: true});
+        botLayer.setCollisionByProperty({collides: true});
 
-        topLayer.setTileLocationCallback(67, 10, 1, 1, () =>{
+        botLayer.setTileLocationCallback(67, 10, 1, 1, () =>{
             this.scene.start('Level2');
         })
 
@@ -152,7 +230,7 @@ var Level1 = new Phaser.Class({
         slime.setCollideWorldBounds(true);
         slime2 = this.physics.add.sprite(780, 0, 'enemy');
         slime2.setCollideWorldBounds(true);
-        slime3 = this.physics.add.sprite(0, 0, 'enemy');
+        slime3 = this.physics.add.sprite(1000, 0, 'enemy');
         slime3.setCollideWorldBounds(true);
 
         // Player Animations
@@ -187,15 +265,9 @@ var Level1 = new Phaser.Class({
         // Monster Animations
         this.anims.create({
             key: 'enemyWalking',
-            frames: this.anims.generateFrameNumbers('enemy', { start: 6, end: 11 }),
+            frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 3 }),
             frameRate: 8,
             repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemyFalling',
-            frames: [ { key: 'enemy', frame: 0 } ],
-            frameRate: 20
         });
 
         // Player movement and ability keys
@@ -209,15 +281,62 @@ var Level1 = new Phaser.Class({
         lifeText.setScrollFactor(0);
 
         // Collide the player and the enemies with the platforms.
+        this.physics.add.collider(man, botLayer);
         this.physics.add.collider(man, topLayer);
         this.physics.add.collider(slime, topLayer);
         this.physics.add.collider(slime2, topLayer);
         this.physics.add.collider(slime3, topLayer);
 
-        // Checks to see if the player touches any of the enemies.
-        this.physics.add.overlap(man, slime, damageTaken, null, this);
-        this.physics.add.overlap(man, slime2, damageTaken, null, this);
-        this.physics.add.overlap(man, slime3, damageTaken, null, this);
+        // Jumping on top of enemy kills them
+        this.physics.add.collider(
+            man,
+            slime,
+            function(_man, _slime)
+            {
+                if (_man.body.touching.down && _slime.body.touching.up)
+                    _slime.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        this.physics.add.collider(
+            man,
+            slime2,
+            function(_man, _slime2)
+            {
+                if (_man.body.touching.down && _slime2.body.touching.up)
+                    _slime2.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        this.physics.add.collider(
+            man,
+            slime3,
+            function(_man, _slime3)
+            {
+                if (_man.body.touching.down && _slime3.body.touching.up)
+                    _slime3.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        // this.physics.add.overlap(man, objectLayer, collectTrash, null, this);
     },
 
     update: function ()
@@ -235,6 +354,7 @@ var Level1 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.collider(laser, topLayer, disableLaser); // swtich to collider/overlap
         }
 
         if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500))
@@ -249,6 +369,7 @@ var Level1 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.collider(laser, topLayer, disableLaser); // switch to collider/overlap
         }
 
         // Player Movement
@@ -293,25 +414,31 @@ var Level1 = new Phaser.Class({
 
         // Jumping Animation
         if (cursors.up.isDown && man.body.onFloor())
-            man.setVelocityY(-330);
+            man.setVelocityY(-300);
         if (lastKeyPressed == "Left" && !man.body.onFloor())
             man.anims.play('squat left', true);
         if (lastKeyPressed == "Right" && !man.body.onFloor())
             man.anims.play('squat right', true);
 
-        // Before Monster Transformation Falling.
-        if (!slime.body.onFloor())
-            slime.anims.play('enemyFalling', true);
-        if (!slime2.body.onFloor())
-            slime2.anims.play('enemyFalling', true);
-        if (!slime3.body.onFloor())
-            slime3.anims.play('enemyFalling', true);
+
+        
+        // bottom right corner
+        console.log(man.x + man.width/2);
+        console.log(man.y + man.height/2);
+
+        // bottom left corner
+        console.log(man.x - man.width/2);
+        console.log(man.y + man.height/2);
+
+        // if (bottom right corner of SpacemanDan hits top of slime) 
+        // if (bottom left corner of SpacemanDan hits top of slime) 
 
         // Enemy Patrolling Movement
         if (slime.body.onFloor() && hitEdgeFlag)
         {
             slime.anims.play('enemyWalking', true);
             slime.setVelocityX(-100);
+            slime.setVelocityY(-200);
             if (slime.x < 800 - 400)
             {
                 slime.anims.play('enemyWalking', true);
@@ -328,6 +455,7 @@ var Level1 = new Phaser.Class({
         {
             slime2.anims.play('enemyWalking', true);
             slime2.setVelocityX(-100);
+            slime2.setVelocityY(-300);
             if (slime2.x < 550)
             {
                 slime2.anims.play('enemyWalking', true);
@@ -343,23 +471,18 @@ var Level1 = new Phaser.Class({
         if (slime3.body.onFloor() && hitEdgeFlag3)
         {
             slime3.anims.play('enemyWalking', true);
-            slime3.setVelocityX(100);
-            if (slime3.x > 250)
+            slime3.setVelocityX(300);
+            if (slime3.x > 1048)
             {
                 slime3.anims.play('enemyWalking', true);
-                slime3.setVelocityX(-100);
+                slime3.setVelocityX(-300);
                 hitEdgeFlag3 = false;
             }
         }
 
         // Checks if enemy hits edge of platform/world.
-        if (slime3.x <= 30)
+        if (slime3.x <= 900)
             hitEdgeFlag3 = true;
-
-        // Makes slime look like they are touching the floor.
-        slime.y += 5;
-        slime2.y += 5;
-        slime3.y += 5;
     }
 });
 
@@ -377,24 +500,30 @@ var Level2 = new Phaser.Class({
     {
         this.load.spritesheet('man', 'assets/SpacemanDan.png', { frameWidth: 48, frameHeight: 48 });
         this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 512, frameHeight: 128 });
-        this.load.spritesheet('enemy', 'assets/Slimboy.png', { frameWidth: 48, frameHeight: 64 }); // planning to make an enemy
+        this.load.spritesheet('enemy', 'assets/Slimeboy.png', { frameWidth: 48, frameHeight: 64 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
-        this.load.tilemapTiledJSON("Level2", "/tilemaps/spaceManDanBackground.json");
+        this.load.tilemapTiledJSON("Level2", "/tilemaps/Level2.json");
         this.load.audio("pew", 'sounds/laserSound.wav');
         this.load.audio("slimeDeath", 'sounds/slimeDeath.wav');
     },
 
     create: function ()
     {
-        this.cameras.main.setBounds(0, 0, 1600 * 2, 700);
+        this.cameras.main.setBounds(0, 0, 1600 * 2, 800);
         this.physics.world.setBounds(0, 0, 1600 * 2, 800);
 
         //When loading from an array, make sure to specify the tileWidth and tileHeight
         const map = this.make.tilemap({ key: 'Level2' });
         const tiles = map.addTilesetImage("SpacemanDan_TileMap");
+        objectLayer = map.createStaticLayer("objects", tiles, 0, 0);
         botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
         topLayer = map.createStaticLayer("top", tiles, 0, 0);
         topLayer.setCollisionByProperty({collides: true});
+        botLayer.setCollisionByProperty({collides: true});
+
+        botLayer.setTileLocationCallback(65, 12, 1, 1, () =>{
+            this.scene.start('FinalLevel');
+        })
 
         // Displays the player
         man = this.physics.add.sprite(200, 450, 'man');
@@ -407,7 +536,7 @@ var Level2 = new Phaser.Class({
         slime.setCollideWorldBounds(true);
         slime2 = this.physics.add.sprite(780, 0, 'enemy');
         slime2.setCollideWorldBounds(true);
-        slime3 = this.physics.add.sprite(0, 0, 'enemy');
+        slime3 = this.physics.add.sprite(1000, 0, 'enemy');
         slime3.setCollideWorldBounds(true);
 
         // Player Animations
@@ -442,15 +571,9 @@ var Level2 = new Phaser.Class({
         // Monster Animations
         this.anims.create({
             key: 'enemyWalking',
-            frames: this.anims.generateFrameNumbers('enemy', { start: 6, end: 11 }),
+            frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 3 }),
             frameRate: 8,
             repeat: -1
-        });
-
-        this.anims.create({
-            key: 'enemyFalling',
-            frames: [ { key: 'enemy', frame: 0 } ],
-            frameRate: 20
         });
 
         // Player movement and ability keys
@@ -472,10 +595,56 @@ var Level2 = new Phaser.Class({
         this.physics.add.collider(slime2, topLayer);
         this.physics.add.collider(slime3, topLayer);
 
-        // Checks to see if the player touches any of the enemies.
-        this.physics.add.overlap(man, slime, damageTaken, null, this);
-        this.physics.add.overlap(man, slime2, damageTaken, null, this);
-        this.physics.add.overlap(man, slime3, damageTaken, null, this);
+        // Jumping on top of enemy kills them
+        this.physics.add.collider(
+            man,
+            slime,
+            function(_man, _slime)
+            {
+                if (_man.body.touching.down && _slime.body.touching.up)
+                    _slime.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        this.physics.add.collider(
+            man,
+            slime2,
+            function(_man, _slime2)
+            {
+                if (_man.body.touching.down && _slime2.body.touching.up)
+                    _slime2.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        this.physics.add.collider(
+            man,
+            slime3,
+            function(_man, _slime3)
+            {
+                if (_man.body.touching.down && _slime3.body.touching.up)
+                    _slime3.disableBody(true, true);
+                else
+                {
+                    _man.disableBody(true, false);
+                    _man.setTint(0x00ff00);
+                    // Make menu screen pop up and exit to check point of game or something
+                }
+            }
+        );
+
+        // this.physics.add.overlap(man, objectLayer, collectTrash, null, this);
     },
 
     update: function ()
@@ -493,6 +662,7 @@ var Level2 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.collider(laser, topLayer, disableLaser);
         }
 
         if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500))
@@ -507,6 +677,7 @@ var Level2 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.collider(laser, topLayer, disableLaser);
         }
 
         // Player Movement
@@ -515,7 +686,7 @@ var Level2 = new Phaser.Class({
             xVelocity -= xSpeed;
             if ((xVelocity <= maxXSpeed * -1))
                 xVelocity = maxXSpeed * -1;
-            
+
             man.setVelocityX(xVelocity);
             man.anims.play('left', true);
             lastKeyPressed = "Left";
@@ -526,7 +697,7 @@ var Level2 = new Phaser.Class({
             xVelocity += xSpeed;
             if (xVelocity >= maxXSpeed)
                 xVelocity = maxXSpeed;
-            
+
             man.setVelocityX(xVelocity);
             man.anims.play('right', true);
             lastKeyPressed = "Right";
@@ -537,7 +708,7 @@ var Level2 = new Phaser.Class({
             if (xVelocity != 0) {
                 if (xVelocity > 0)
                     xVelocity -= friction;
-                if (xVelocity < 0) 
+                if (xVelocity < 0)
                     xVelocity += friction;
                 if ( (xVelocity <= friction) && (xVelocity > 0) )
                     xVelocity = 0;
@@ -551,22 +722,14 @@ var Level2 = new Phaser.Class({
 
         // Jumping Animation
         if (cursors.up.isDown && man.body.onFloor())
-            man.setVelocityY(-330);
+            man.setVelocityY(-300);
         if (lastKeyPressed == "Left" && !man.body.onFloor())
             man.anims.play('squat left', true);
         if (lastKeyPressed == "Right" && !man.body.onFloor())
             man.anims.play('squat right', true);
 
-        // Before Monster Transformation Falling.
-        if (!slime.body.onFloor())
-            slime.anims.play('enemyFalling', true);
-        if (!slime2.body.onFloor())
-            slime2.anims.play('enemyFalling', true);
-        if (!slime3.body.onFloor())
-            slime3.anims.play('enemyFalling', true);
-
         // Enemy Patrolling Movement
-        if (slime.body.onFloor() && hitEdgeFlag)
+        if (slime.body.onFloor() && Level2Flag)
         {
             slime.anims.play('enemyWalking', true);
             slime.setVelocityX(-100);
@@ -574,15 +737,15 @@ var Level2 = new Phaser.Class({
             {
                 slime.anims.play('enemyWalking', true);
                 slime.setVelocityX(100);
-                hitEdgeFlag = false;
+                Level2Flag = false;
             }
         }
         
         // Checks if enemy hits edge of platform/world
         if (slime.x >= 800 - 30)
-            hitEdgeFlag = true;
+            Level2Flag = true;
 
-        if (slime2.body.onFloor() && hitEdgeFlag2)
+        if (slime2.body.onFloor() && Level2Flag2)
         {
             slime2.anims.play('enemyWalking', true);
             slime2.setVelocityX(-100);
@@ -590,15 +753,15 @@ var Level2 = new Phaser.Class({
             {
                 slime2.anims.play('enemyWalking', true);
                 slime2.setVelocityX(100);
-                hitEdgeFlag2 = false;
+                Level2Flag2 = false;
             }
         }
 
         // Checks if enemy hits edge of platform/world
         if (slime2.x >= 800 - 30)
-            hitEdgeFlag2 = true;
+            Level2Flag2 = true;
 
-        if (slime3.body.onFloor() && hitEdgeFlag3)
+        if (slime3.body.onFloor() && Level2Flag3)
         {
             slime3.anims.play('enemyWalking', true);
             slime3.setVelocityX(100);
@@ -606,20 +769,14 @@ var Level2 = new Phaser.Class({
             {
                 slime3.anims.play('enemyWalking', true);
                 slime3.setVelocityX(-100);
-                hitEdgeFlag3 = false;
+                Level2Flag3 = false;
             }
         }
 
         // Checks if enemy hits edge of platform/world.
         if (slime3.x <= 30)
-            hitEdgeFlag3 = true;
-
-        // Makes slime look like they are touching the floor.
-        slime.y += 5;
-        slime2.y += 5;
-        slime3.y += 5;
+            Level2Flag3 = true;
     }
-
 });
 
 var config = {
@@ -633,26 +790,10 @@ var config = {
             debug: false
         }
     },
-    scene: [MenuScene, Level1, Level2]
+    scene: [MenuScene, LoadingScene, Level1, Level2]
 };
 
 var game = new Phaser.Game(config);
-
-// If enemy touches player, player takes damage or loses.
-function damageTaken (man, enemy)
-{
-    if (life === 0)
-    {
-        this.physics.pause();
-        man.setTint(0x00ff00);
-        gameOver = true;
-        return;
-    }
-
-    // Subtract and update life.
-    life -= 1;
-    lifeText.setText('Life: ' + life);
-}
 
 function destroyEnemy (beam, enemy)
 {
@@ -663,6 +804,16 @@ function destroyEnemy (beam, enemy)
     // Add and update the score
     score += 10;
     scoreText.setText('Score: ' + score);
+}
+
+function jumpOnEnemy (man, enemy)
+{
+    enemy.disableBody(true, true);
+}
+
+function disableLaser (beam, wall)
+{
+    beam.disableBody(true, true);
 }
 
 </script>
