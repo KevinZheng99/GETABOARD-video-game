@@ -1,0 +1,23 @@
+{
+	"ramp": {
+		"type": "fromPhysicsEditor",
+		"label": "ramp",
+		"isStatic": false,
+		"collisionFilter": {
+			"group": 0,
+			"category": 1,
+			"mask": 255
+		},
+		"fixtures": [
+			{
+				"label": "",
+				"isSensor": false,
+				"vertices": [
+					[ { "x":55, "y":393.5 }, { "x":481, "y":393 }, { "x":54.5, "y":26 } ],
+					[ { "x":100, "y":61.5 }, { "x":54.5, "y":26 }, { "x":182, "y":132.5 } ],
+					[ { "x":473, "y":384.5 }, { "x":309, "y":242.5 }, { "x":481, "y":393 } ]
+				]
+			}
+		]
+	}
+}
