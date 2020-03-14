@@ -23,10 +23,14 @@ var slime5;
 var man;
 var laser;
 
+// Player forms
+var normalForm = true;
+var gunForm = false;
+
 // Map vars
 var topLayer;
 var botLayer;
-var objectLayer;
+var trashBags;
 
 // Key vars
 var cursors;
@@ -92,10 +96,10 @@ var MenuScene = new Phaser.Class({
 
         // Plays music even when out of screen.
         // this.sound.pauseOnBlur = false;
-        this.sound.play("music", {
-            loop: true,
-            volume: 0.5
-        })
+        // this.sound.play("music", {
+        //     loop: true,
+        //     volume: 0.5
+        // })
 
         playButton.setInteractive(); 
 
@@ -199,7 +203,7 @@ var Level1 = new Phaser.Class({
     preload: function ()
     {
         this.load.spritesheet('man', 'assets/SpacemanDan2.png', { frameWidth: 48, frameHeight: 48 });
-        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 512, frameHeight: 128 });
+        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 128, frameHeight: 128 });
         this.load.spritesheet('enemy', 'assets/Slimeboy2.png', { frameWidth: 48, frameHeight: 48 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
         this.load.tilemapTiledJSON("Level1", "/tilemaps/spaceManDanBackground.json");
@@ -208,9 +212,18 @@ var Level1 = new Phaser.Class({
     },
 
     create: function ()
-    {
+    {   
         this.cameras.main.setBounds(0, 0, 1680 * 2, 700);
         this.physics.world.setBounds(0, 0, 1680 * 2, 800);
+
+        //When loading from an array, make sure to specify the tileWidth and tileHeight
+        const map = this.make.tilemap({ key: 'Level1' });
+        const tiles = map.addTilesetImage("SpacemanDan_TileMap");
+        botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
+        topLayer = map.createStaticLayer("top", tiles, 0, 0);
+        trashBags = map.getObjectLayer("TrashBags");
+        topLayer.setCollisionByProperty({collides: true});
+        botLayer.setCollisionByProperty({collides: true});
 		
 		// Load the game over screen for future use.
 	    var width = this.cameras.main.centerX * 4;
@@ -218,15 +231,6 @@ var Level1 = new Phaser.Class({
 		gameOverScreen = this.add.rectangle(0, 0, width, height, 0x000000);
 		gameOverScreen.setVisible(false);
 		gameOverScreen.setScrollFactor(0);
-
-        //When loading from an array, make sure to specify the tileWidth and tileHeight
-        const map = this.make.tilemap({ key: 'Level1' });
-        const tiles = map.addTilesetImage("SpacemanDan_TileMap");
-        botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
-        topLayer = map.createStaticLayer("top", tiles, 0, 0);
-        objectLayer = map.createStaticLayer("objects", tiles, 0, 0);
-        topLayer.setCollisionByProperty({collides: true});
-        botLayer.setCollisionByProperty({collides: true});
 
         botLayer.setTileLocationCallback(67, 10, 1, 1, () =>{
             this.scene.start('Level2');
@@ -240,12 +244,16 @@ var Level1 = new Phaser.Class({
         this.cameras.main.startFollow(man, true, 0.05, 0.05);
 
         // Displays the mobs
-        slime = this.physics.add.sprite(300, 100, 'enemy');
+        slime = this.physics.add.sprite(300, 0, 'enemy');
         slime.setCollideWorldBounds(true);
         slime2 = this.physics.add.sprite(780, 0, 'enemy');
         slime2.setCollideWorldBounds(true);
         slime3 = this.physics.add.sprite(900, 0, 'enemy');
         slime3.setCollideWorldBounds(true);
+        slime4 = this.physics.add.sprite(1200, 0, 'enemy');
+        slime4.setCollideWorldBounds(true);
+        slime5 = this.physics.add.sprite(1500, 0, 'enemy');
+        slime5.setCollideWorldBounds(true);
 
         // Player Animations
         // Moving left animations
@@ -333,11 +341,10 @@ var Level1 = new Phaser.Class({
         lifeText.setScrollFactor(0);
 		
 		gameOverLevelText = this.add.text(700, 300, 'Level ' + level + '', {fontSize: '32px', fill: '#fff' });
-		if (deaths == 1) {
-        gameOverLivesText = this.add.text(600, 400, 'You have died 1 time.', {fontSize: '32px', fill: '#fff'});
-		} else {
-		gameOverLivesText = this.add.text(600, 400, 'You have died ' + deaths + ' times.', {fontSize: '32px', fill: '#fff'});
-		}
+		if (deaths == 1)
+            gameOverLivesText = this.add.text(600, 400, 'You have died 1 time.', {fontSize: '32px', fill: '#fff'});
+		else
+		    gameOverLivesText = this.add.text(600, 400, 'You have died ' + deaths + ' times.', {fontSize: '32px', fill: '#fff'});
 		
         gameOverLevelText.setScrollFactor(0);
         gameOverLivesText.setScrollFactor(0);
@@ -346,21 +353,27 @@ var Level1 = new Phaser.Class({
 
         // Collide the player and the enemies with the platforms.
         this.physics.add.collider(man, topLayer);
+        this.physics.add.collider(man, botLayer);
         this.physics.add.collider(slime, topLayer);
         this.physics.add.collider(slime2, topLayer);
         this.physics.add.collider(slime3, topLayer);
+        this.physics.add.collider(slime4, topLayer);
+        this.physics.add.collider(slime5, topLayer);
 
         // Checks to see if the player touches any of the enemies.
         this.physics.add.overlap(man, slime, damageTaken, null, this);
         this.physics.add.overlap(man, slime2, damageTaken, null, this);
         this.physics.add.overlap(man, slime3, damageTaken, null, this);
+        this.physics.add.overlap(man, slime4, damageTaken, null, this);
+        this.physics.add.overlap(man, slime5, damageTaken, null, this);
     },
 
     update: function ()
     {
 	
 	    // From here to next comment handles game over screen.
-    	if (gameOver == true) {
+        if (gameOver == true)
+        {
             man.setVelocityX(0);
             man.setVelocityY(400);
             this.physics.accelerateTo(man, man.x, 0, 180, 500, 5000);
@@ -370,11 +383,10 @@ var Level1 = new Phaser.Class({
             score = 0;
             gameOver = true;
 
-    	    if (man.y <= config.height) {
+    	    if (man.y <= config.height)
     		    man.y += 10;
-    	    } else {
+    	    else
     		    restart = true;
-    	    }
     	}
 		if (restartTimer <= restartDelay && restart == true && gameOver == true) {
 		    restartTimer += 1;
@@ -396,13 +408,14 @@ var Level1 = new Phaser.Class({
 			man.velocityY = 0;
 			man.velocityX = 0;
 			restart = false;
-			gameOver = false;
-		    if (level == 1) {
-    		    this.scene.start('Level1');
-    		}
-    		if (level == 2) {
-    		    this.scene.start('Level2');
-    	    }
+            gameOver = false;
+            
+		    if (level == 1)
+                this.scene.start('Level1');
+                
+    		if (level == 2)
+                this.scene.start('Level2');
+                
 			restartTimer = 0;
 			gameOverScreen.setVisible(false);
 			gameOverLevelText.setVisible(false);
@@ -417,30 +430,35 @@ var Level1 = new Phaser.Class({
         if (lastKeyPressed == "Right" && this.input.keyboard.checkDown(shootingKey, 500))
         {
             // Coordinates of where the laser is shot from.
-            this.sound.play("pew", {volume: 0.5});
+            // this.sound.play("pew", {volume: 0.5});
             laser = this.physics.add.sprite(man.x + 45, man.y + 2, 'laser');
             laser.setTint(0xffff00); // yellow
-            laser.setGravityY(-300);
+            laser.setGravityY(-300); // removes world gravity on laser
             laser.setDisplaySize(64, 16);
-            laser.setVelocityX(1000);
+            laser.setVelocityX(100);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime4, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime5, destroyEnemy, null, this);
             this.physics.add.collider(laser, topLayer, disableLaser); // swtich to collider/overlap
         }
 
         if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500))
         {
             // Coordinates of where the laser is shot from.
-            this.sound.play("pew", {volume: 0.5});
+            // this.sound.play("pew", {volume: 0.5});
             laser = this.physics.add.sprite(man.x - 45, man.y + 2, 'laser');
+            laser.flipX = true; // reverse image for left side
             laser.setTint(0xffff00); // yellow
-            laser.setGravityY(-300);
+            laser.setGravityY(-300); // removes world gravity on laser
             laser.setDisplaySize(64, 16);
-            laser.setVelocityX(-1000);
+            laser.setVelocityX(-100);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime4, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime5, destroyEnemy, null, this);
             this.physics.add.collider(laser, topLayer, disableLaser); // switch to collider/overlap
         }
 
@@ -469,7 +487,8 @@ var Level1 = new Phaser.Class({
 
         else if (!cursors.right.isDown && !cursors.left.isDown)
         {
-            if (xVelocity != 0) {
+            if (xVelocity != 0) 
+            {
                 if (xVelocity > 0)
                     xVelocity -= friction;
                 if (xVelocity < 0)
@@ -509,7 +528,6 @@ var Level1 = new Phaser.Class({
             }
         }
         
-
         if (slime2.body.onFloor())
         {
             // Checks if enemy hits edge of platform/world
@@ -555,7 +573,7 @@ var Level2 = new Phaser.Class({
     preload: function ()
     {
         this.load.spritesheet('man', 'assets/SpacemanDan2.png', { frameWidth: 48, frameHeight: 48 });
-        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 512, frameHeight: 128 });
+        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 128, frameHeight: 128 });
         this.load.spritesheet('enemy', 'assets/Slimeboy2.png', { frameWidth: 48, frameHeight: 64 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
         this.load.tilemapTiledJSON("Level2", "/tilemaps/Level2.json");
@@ -571,7 +589,6 @@ var Level2 = new Phaser.Class({
         //When loading from an array, make sure to specify the tileWidth and tileHeight
         const map = this.make.tilemap({ key: 'Level2' });
         const tiles = map.addTilesetImage("SpacemanDan_TileMap");
-        objectLayer = map.createStaticLayer("objects", tiles, 0, 0);
         botLayer = map.createStaticLayer("bot", tiles, 0, 0).setDepth(-1);
         topLayer = map.createStaticLayer("top", tiles, 0, 0);
         topLayer.setCollisionByProperty({collides: true});
@@ -588,12 +605,16 @@ var Level2 = new Phaser.Class({
         this.cameras.main.startFollow(man, true, 0.05, 0.05);
 
         // Displays the mobs
-        slime = this.physics.add.sprite(450, 100, 'enemy');
+        slime = this.physics.add.sprite(300, 0, 'enemy');
         slime.setCollideWorldBounds(true);
         slime2 = this.physics.add.sprite(780, 0, 'enemy');
         slime2.setCollideWorldBounds(true);
-        slime3 = this.physics.add.sprite(1000, 0, 'enemy');
+        slime3 = this.physics.add.sprite(900, 0, 'enemy');
         slime3.setCollideWorldBounds(true);
+        slime4 = this.physics.add.sprite(1000, 0, 'enemy');
+        slime4.setCollideWorldBounds(true);
+        slime5 = this.physics.add.sprite(1200, 0, 'enemy');
+        slime5.setCollideWorldBounds(true);
 
         // Player Animations
         // Moving left animations
@@ -685,16 +706,19 @@ var Level2 = new Phaser.Class({
 
         // Collide the player and the enemies with the platforms.
         this.physics.add.collider(man, topLayer);
+        this.physics.add.collider(man, botLayer);
         this.physics.add.collider(slime, topLayer);
         this.physics.add.collider(slime2, topLayer);
         this.physics.add.collider(slime3, topLayer);
+        this.physics.add.collider(slime4, topLayer);
+        this.physics.add.collider(slime5, topLayer);
 
         // Checks to see if the player touches any of the enemies.
         this.physics.add.overlap(man, slime, damageTaken, null, this);
         this.physics.add.overlap(man, slime2, damageTaken, null, this);
         this.physics.add.overlap(man, slime3, damageTaken, null, this);
-
-        // this.physics.add.overlap(man, objectLayer, collectTrash, null, this);
+        this.physics.add.overlap(man, slime4, damageTaken, null, this);
+        this.physics.add.overlap(man, slime5, damageTaken, null, this);
     },
 
     update: function ()
@@ -757,7 +781,7 @@ var Level2 = new Phaser.Class({
         if (lastKeyPressed == "Right" && this.input.keyboard.checkDown(shootingKey, 500))
         {
             // Coordinates of where the laser is shot from.
-            this.sound.play("pew", {volume: 0.5});
+            // this.sound.play("pew", {volume: 0.5});
             laser = this.physics.add.sprite(man.x + 45, man.y + 2, 'laser');
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300);
@@ -766,14 +790,17 @@ var Level2 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime4, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime5, destroyEnemy, null, this);
             this.physics.add.collider(laser, topLayer, disableLaser); // swtich to collider/overlap
         }
 
         if (lastKeyPressed == "Left" && this.input.keyboard.checkDown(shootingKey, 500))
         {
             // Coordinates of where the laser is shot from.
-            this.sound.play("pew", {volume: 0.5});
+            // this.sound.play("pew", {volume: 0.5});
             laser = this.physics.add.sprite(man.x - 45, man.y + 2, 'laser');
+            laser.flipX = true; // reverse image for left side
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300);
             laser.setDisplaySize(64, 16);
@@ -781,6 +808,8 @@ var Level2 = new Phaser.Class({
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime4, destroyEnemy, null, this);
+            this.physics.add.overlap(laser, slime5, destroyEnemy, null, this);
             this.physics.add.collider(laser, topLayer, disableLaser); // switch to collider/overlap
         }
 
