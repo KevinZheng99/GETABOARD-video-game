@@ -66,6 +66,10 @@ var gameOverLivesText;
 // Variable that tracks amount of deaths.
 var deaths = 1;
 
+// Variable for tracking player's Y velocity
+var lastY = 0;
+var yVelocity = 0;
+
 // First thing the player sees.
 var MenuScene = new Phaser.Class({
     Extends: Phaser.Scene,
@@ -203,7 +207,7 @@ var Level1 = new Phaser.Class({
     preload: function ()
     {
         this.load.spritesheet('man', 'assets/SpacemanDan2.png', { frameWidth: 48, frameHeight: 48 });
-        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 128, frameHeight: 128 });
+        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 1280, frameHeight: 1280 });
         this.load.spritesheet('enemy', 'assets/Slimeboy2.png', { frameWidth: 48, frameHeight: 48 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
         this.load.tilemapTiledJSON("Level1", "/tilemaps/spaceManDanBackground.json");
@@ -333,7 +337,6 @@ var Level1 = new Phaser.Class({
         // Player movement and ability keys
         cursors = this.input.keyboard.createCursorKeys();
         shootingKey = this.input.keyboard.addKey('SPACE');
-
         // The score & life hearts
         scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
         lifeText = this.add.text(1350, 16, 'Life: 1', { fontSize: '32px', fill: '#000'});
@@ -371,6 +374,19 @@ var Level1 = new Phaser.Class({
     update: function ()
     {
 	
+	    // Handles fetching y velocity of man until next comment
+	    if (lastY != man.y) {
+		yVelocity = (man.y - lastY);
+		lastY = man.y;
+		} else {
+		lastY = man.y;
+		yVelocity = -500; // -500 is used as a placeholder value. Since the value will never be this, we know that if it equals this, then you must be grounded.
+		}
+		if (yVelocity == 5.684341886080802e-14 || yVelocity == -5.684341886080802e-14) { // For some reason, velocity gets set as those two values sometimes. This fixes that.
+		yVelocity = -500;
+		}
+		// Concludes handling of y velocity.
+		
 	    // From here to next comment handles game over screen.
         if (gameOver == true)
         {
@@ -434,8 +450,8 @@ var Level1 = new Phaser.Class({
             laser = this.physics.add.sprite(man.x + 45, man.y + 2, 'laser');
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300); // removes world gravity on laser
-            laser.setDisplaySize(64, 16);
-            laser.setVelocityX(100);
+            laser.setDisplaySize(48, 32);
+            laser.setVelocityX(500);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
@@ -452,8 +468,8 @@ var Level1 = new Phaser.Class({
             laser.flipX = true; // reverse image for left side
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300); // removes world gravity on laser
-            laser.setDisplaySize(64, 16);
-            laser.setVelocityX(-100);
+            laser.setDisplaySize(48, 32);
+            laser.setVelocityX(-500);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
@@ -855,7 +871,8 @@ var Level2 = new Phaser.Class({
 
         // Jumping Animation
         if (cursors.up.isDown && man.body.onFloor())
-            man.setVelocityY(-300);
+		    yVelocity = -300;
+            man.setVelocityY(yVelocity);
         if (lastKeyPressed == "Left" && !man.body.onFloor())
             man.anims.play('squatLeft', true);
         if (lastKeyPressed == "Right" && !man.body.onFloor())
@@ -877,7 +894,6 @@ var Level2 = new Phaser.Class({
                 slime.setVelocityX(200);
             }
         }
-        
 
         if (slime2.body.onFloor())
         {
@@ -927,20 +943,32 @@ var config = {
 
 function damageTaken (man, enemy)
 {
-    if (life <= 0)
+    if (yVelocity <= -1)
     {
-		man.setVelocityX(0);
-	    this.physics.accelerateTo(man, man.x, man.y - 30, 180, 500, 500);
-		cursors.up.isDown = true;
-		cursors.left.isDown = false;
-		cursors.right.isDown = false;
-        man.setTint(0x00ff00);
-        gameOver = true;
-    }
+        if (life <= 0)
+        {
+            man.setVelocityX(0);
+            this.physics.accelerateTo(man, man.x, man.y - 30, 180, 500, 500);
+            cursors.up.isDown = true;
+            cursors.left.isDown = false;
+            cursors.right.isDown = false;
+            man.setTint(0x00ff00);
+            gameOver = true;
+        }
 
-    // Subtract and update life.
-    life -= 1;
-    lifeText.setText('Life: ' + life);
+        // Subtract and update life.
+        life -= 1;
+        lifeText.setText('Life: ' + life);
+    }
+    else
+    {
+        man.setVelocityY(-200);
+        this.physics.add.overlap(man, slime, destroyEnemy, null, this);
+        this.physics.add.overlap(man, slime2, destroyEnemy, null, this);
+        this.physics.add.overlap(man, slime3, destroyEnemy, null, this);
+        this.physics.add.overlap(man, slime4, destroyEnemy, null, this);
+        this.physics.add.overlap(man, slime5, destroyEnemy, null, this);
+	}
 }
 
 var game = new Phaser.Game(config);
@@ -956,30 +984,10 @@ function destroyEnemy (beam, _slime)
     beam.disableBody(true, true);
     _slime.on('animationcomplete', ()=> {
         _slime.disableBody(true, true);
-        score += 10; // Fix adding score issue
     });
 
+    score += 10;
     scoreText.setText('Score: ' + score);
-}
-
-// Plays animation for the slime when jumped on.
-function jumpOnEnemy (_man, _slime)
-{
-    if (_man.body.touching.down && _slime.body.touching.up)
-    {
-        _slime.play('enemyJumpDeath', false);
-        _slime.once('animationcomplete', ()=> {
-            _slime.disableBody(true, true);
-        })
-        _man.setVelocityY(-30); // Slight bounce when jumping on enemy
-        score += 10;
-    }
-    else
-    {
-        _man.disableBody(true, false);
-        _man.setTint(0x00ff00);
-        // Make menu screen pop up and exit to check point of game or something
-    }
 }
 
 function disableLaser (beam, wall)
