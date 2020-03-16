@@ -373,7 +373,6 @@ var Level1 = new Phaser.Class({
 
     update: function ()
     {
-	
 	    // Handles fetching y velocity of man until next comment
 	    if (lastY != man.y) {
 		yVelocity = (man.y - lastY);
@@ -589,7 +588,7 @@ var Level2 = new Phaser.Class({
     preload: function ()
     {
         this.load.spritesheet('man', 'assets/SpacemanDan2.png', { frameWidth: 48, frameHeight: 48 });
-        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 128, frameHeight: 128 });
+        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 1280, frameHeight: 1280 });
         this.load.spritesheet('enemy', 'assets/Slimeboy2.png', { frameWidth: 48, frameHeight: 64 }); // planning to make an enemy
         this.load.image("SpacemanDan_TileMap", "/assets/SpacemanDan_TileMap.jpg");
         this.load.tilemapTiledJSON("Level2", "/tilemaps/Level2.json");
@@ -739,6 +738,20 @@ var Level2 = new Phaser.Class({
 
     update: function ()
     {
+        console.log(yVelocity);
+        // Handles fetching y velocity of man until next comment
+	    if (lastY != man.y) {
+		yVelocity = (man.y - lastY);
+		lastY = man.y;
+		} else {
+		lastY = man.y;
+		yVelocity = -500; // -500 is used as a placeholder value. Since the value will never be this, we know that if it equals this, then you must be grounded.
+		}
+		if (yVelocity == 5.684341886080802e-14 || yVelocity == -5.684341886080802e-14) { // For some reason, velocity gets set as those two values sometimes. This fixes that.
+		yVelocity = -500;
+		}
+		// Concludes handling of y velocity.
+
         // From here to next comment handles game over screen.
     	if (gameOver == true) {
             man.setVelocityX(0);
@@ -801,8 +814,8 @@ var Level2 = new Phaser.Class({
             laser = this.physics.add.sprite(man.x + 45, man.y + 2, 'laser');
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300);
-            laser.setDisplaySize(64, 16);
-            laser.setVelocityX(1000);
+            laser.setDisplaySize(48, 32);
+            laser.setVelocityX(500);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
@@ -819,8 +832,8 @@ var Level2 = new Phaser.Class({
             laser.flipX = true; // reverse image for left side
             laser.setTint(0xffff00); // yellow
             laser.setGravityY(-300);
-            laser.setDisplaySize(64, 16);
-            laser.setVelocityX(-1000);
+            laser.setDisplaySize(48, 32);
+            laser.setVelocityX(-500);
             this.physics.add.overlap(laser, slime, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime2, destroyEnemy, null, this);
             this.physics.add.overlap(laser, slime3, destroyEnemy, null, this);
@@ -871,8 +884,7 @@ var Level2 = new Phaser.Class({
 
         // Jumping Animation
         if (cursors.up.isDown && man.body.onFloor())
-		    yVelocity = -300;
-            man.setVelocityY(yVelocity);
+            man.setVelocityY(-300);
         if (lastKeyPressed == "Left" && !man.body.onFloor())
             man.anims.play('squatLeft', true);
         if (lastKeyPressed == "Right" && !man.body.onFloor())
@@ -894,7 +906,7 @@ var Level2 = new Phaser.Class({
                 slime.setVelocityX(200);
             }
         }
-
+        
         if (slime2.body.onFloor())
         {
             // Checks if enemy hits edge of platform/world
@@ -962,12 +974,13 @@ function damageTaken (man, enemy)
     }
     else
     {
+        // Jumps on enemy to kill them.
+        this.physics.add.overlap(man, slime, jumpOnEnemy, null, this);
+        this.physics.add.overlap(man, slime2, jumpOnEnemy, null, this);
+        this.physics.add.overlap(man, slime3, jumpOnEnemy, null, this);
+        this.physics.add.overlap(man, slime4, jumpOnEnemy, null, this);
+        this.physics.add.overlap(man, slime5, jumpOnEnemy, null, this);
         man.setVelocityY(-200);
-        this.physics.add.overlap(man, slime, destroyEnemy, null, this);
-        this.physics.add.overlap(man, slime2, destroyEnemy, null, this);
-        this.physics.add.overlap(man, slime3, destroyEnemy, null, this);
-        this.physics.add.overlap(man, slime4, destroyEnemy, null, this);
-        this.physics.add.overlap(man, slime5, destroyEnemy, null, this);
 	}
 }
 
@@ -983,6 +996,21 @@ function destroyEnemy (beam, _slime)
     _slime.play('enemyLaserDeath', true);
     beam.disableBody(true, true);
     _slime.on('animationcomplete', ()=> {
+        _slime.disableBody(true, true);
+    });
+
+    score += 10;
+    scoreText.setText('Score: ' + score);
+}
+
+// Plays the animation for the slime when jumped on.
+function jumpOnEnemy (_player, _slime)
+{
+    this.sound.play("slimeDeath");
+
+    _slime.setVelocity(0);
+    _slime.play('enemyJumpDeath', true);
+    _slime.on('animationcomplete', () => {
         _slime.disableBody(true, true);
     });
 
