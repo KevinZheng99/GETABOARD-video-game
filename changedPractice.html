@@ -380,12 +380,12 @@ var Level1 = new Phaser.Class({
     {
 	    // Handles fetching y velocity of man until next comment
 	    if (lastY != man.y) {
-		yVelocity = (man.y - lastY);
-		lastY = man.y;
+		    yVelocity = (man.y - lastY);
+		    lastY = man.y;
 		} else {
-		lastY = man.y;
-		yVelocity = -500; // -500 is used as a placeholder value. Since the value will never be this, we know that if it equals this, then you must be grounded.
-		}
+		    lastY = man.y;
+		    yVelocity = -500; // -500 is used as a placeholder value. Since the value will never be this, we know that if it equals this, then you must be grounded.
+	    }
 		if (yVelocity == 5.684341886080802e-14 || yVelocity == -5.684341886080802e-14) { // For some reason, velocity gets set as those two values sometimes. This fixes that.
 		yVelocity = -500;
 		}
@@ -430,11 +430,13 @@ var Level1 = new Phaser.Class({
 			restart = false;
             gameOver = false;
             
-		    if (level == 1)
+		    if (level == 1) {
                 this.scene.start('Level1');
+		    }
                 
-    		if (level == 2)
+    		if (level == 2) {
                 this.scene.start('Level2');
+			}
                 
 			restartTimer = 0;
 			gameOverScreen.setVisible(false);
@@ -628,6 +630,13 @@ var Level2 = new Phaser.Class({
         topLayer = map.createStaticLayer("top", tiles, 0, 0);
         topLayer.setCollisionByProperty({collides: true});
         botLayer.setCollisionByProperty({collides: true});
+		
+		// Load the game over screen for future use.
+	    var width = this.cameras.main.centerX * 4;
+		var height = this.cameras.main.centerY * 4;
+		gameOverScreen = this.add.rectangle(0, 0, width, height, 0x000000);
+		gameOverScreen.setVisible(false);
+		gameOverScreen.setScrollFactor(0);
 
         botLayer.setTileLocationCallback(65, 12, 1, 1, () =>{
             this.scene.start('FinalLevel');
@@ -738,6 +747,18 @@ var Level2 = new Phaser.Class({
         lifeText = this.add.text(1350, 16, 'Life: 1', { fontSize: '32px', fill: '#000'});
         scoreText.setScrollFactor(0);
         lifeText.setScrollFactor(0);
+		
+	    gameOverLevelText = this.add.text(700, 300, 'Level ' + level + '', {fontSize: '32px', fill: '#fff' });
+		if (deaths == 1) {
+        gameOverLivesText = this.add.text(600, 400, 'You have died 1 time.', {fontSize: '32px', fill: '#fff'});
+		} else {
+		gameOverLivesText = this.add.text(600, 400, 'You have died ' + deaths + ' times.', {fontSize: '32px', fill: '#fff'});
+		}
+		
+        gameOverLevelText.setScrollFactor(0);
+        gameOverLivesText.setScrollFactor(0);
+		gameOverLevelText.setVisible(false);
+		gameOverLivesText.setVisible(false);
 
         // Collide the player and the enemies with the platforms.
         this.physics.add.collider(man, topLayer);
@@ -1034,7 +1055,7 @@ function destroyEnemy (beam, _slime)
         _slime.disableBody(true, true);
     });
 
-    score -= 10;
+    score += 10;
     scoreText.setText('Score: ' + score);
 }
 
